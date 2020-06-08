@@ -8,6 +8,7 @@ const mkdirp = util.promisify(require('mkdirp'));
 const {
   ensureTask,
   gitDescribe,
+  gitCurrentBranch,
   npmPublish,
   execCommand,
   pyClientRelease,
@@ -31,10 +32,24 @@ module.exports = ({tasks, cmdOptions, credentials, baseDir, logsDir}) => {
     provides: ['release-version', 'docker-flow-version'],
     run: async (requirements, utils) => {
       if (cmdOptions.staging) {
+        // for staging releases, we get the version from the staging-release/*
+        // branch name, and use a fake revision
+        const {ref: branch} = await gitCurrentBranch({
+          dir: REPO_ROOT,
+          utils,
+        });
+        const match = /staging-release\/v(\d+\.\d+\.\d+)$/.exec(branch);
+        if (!match) {
+          throw new Error('Staging releases must have branches named `staging-release/vX.Y.Z`');
+        }
+        const version = match[1];
+        console.log(version);
+        process.exit(99);
+
         return {
-          'release-version': '9999.99.99',
+          'release-version': version,
           'docker-flow-version': dockerFlowVersion({
-            gitDescription: 'v9999.99.99',
+            gitDescription: `v${version}`,
             revision: '9999999999999999999999999999999999999999',
           }),
         };
